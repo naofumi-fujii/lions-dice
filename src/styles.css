@@ -132,6 +132,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1.32;
+  white-space: pre-line;
 }
 
 /* 操作ボタン */
@@ -199,6 +200,8 @@ body {
   background: var(--panel);
   backdrop-filter: blur(12px);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.5);
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
 }
 
 .editor__title {
@@ -218,12 +221,13 @@ body {
 
 .editor__row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
 .editor__face {
   flex: none;
+  margin-top: 4px;
   width: 26px;
   height: 26px;
   display: grid;
@@ -245,6 +249,11 @@ body {
   color: inherit;
   font-family: inherit;
   font-size: 14px;
+  line-height: 1.45;
+}
+
+textarea.editor__input {
+  resize: vertical;
 }
 
 .editor__input:focus {
@@ -262,6 +271,29 @@ body {
   margin: 10px 0 0;
   font-size: 12px;
   color: rgba(244, 247, 251, 0.5);
+}
+
+/* JSON 読み込みセクション */
+.editor__source {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.editor__subtitle {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+}
+
+.editor__source .editor__input {
+  width: 100%;
+  font-size: 12px;
+}
+
+.editor__note--error {
+  color: #ff9d9d;
 }
 
 @keyframes slam {

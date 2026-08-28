@@ -14,7 +14,24 @@ npm run dev
 
 - **サイコロを振る** ボタン、または **スペースキー** で振る
 - **テーマを編集** から 6 面のテキストを自由に書き換え（`localStorage` に自動保存）
+- **テーマを編集 → JSON からまとめて読み込む** で、外部 JSON のテーマ一覧を取り込み、
+  そこからランダムに 6 面へ割り当て（**6面を引き直す** で引き直し）
 - ドラッグで視点回転、ホイールでズーム
+
+## 読み込める JSON の形式
+
+`parseThemePool` (`src/themeSource.js`) が次のいずれかを受け付けます。空文字と重複は除きます。
+
+```jsonc
+{ "talkThemes": [{ "text": "最近ハマってること" }] }  // asakai-talk-themes 形式
+[{ "text": "最近ハマってること" }]
+["最近ハマってること"]
+```
+
+既定の読み込み元は
+[asakai-talk-themes](https://github.com/Tsutomu-Ikeda/asakai-talk-themes) の
+`data/asakai-talk-themes.json` です。取得は素の `fetch` なので、
+読み込み先が CORS を許可している必要があります。
 
 ## 技術構成
 
@@ -34,11 +51,13 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 | `src/DiceScene.jsx` | 3D シーン。物理演算と出目の判定 |
 | `src/faceTexture.js` | 各面のテキストを Canvas に描いてテクスチャ化 |
 | `src/themes.js` | トークテーマの初期値と localStorage 永続化 |
+| `src/themeSource.js` | 外部 JSON の取得とテーマ一覧への正規化・抽選 |
 | `src/styles.css` | 番組風オーバーレイ UI のスタイル |
 
 ## カスタマイズの勘所
 
 - 初期テーマ: `src/themes.js` の `DEFAULT_THEMES`
+- 読み込み元 URL の既定値: `src/themeSource.js` の `DEFAULT_SOURCE_URL`
 - サイコロの質感 / 大きさ: `src/DiceScene.jsx` の `DICE_SIZE` と `meshPhysicalMaterial`
 - 転がる範囲とカメラ: `ARENA_HALF_X` / `ARENA_HALF_Z` / `ARENA_CENTER_Z` と `Canvas` の `camera`
 - 面の文字色・枠線: `src/faceTexture.js` の `TEXT_COLOR` / `ACCENT_COLOR`
