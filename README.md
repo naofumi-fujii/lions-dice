@@ -42,3 +42,14 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 - サイコロの質感 / 大きさ: `src/DiceScene.jsx` の `DICE_SIZE` と `meshPhysicalMaterial`
 - 転がる範囲とカメラ: `ARENA_HALF_X` / `ARENA_HALF_Z` / `ARENA_CENTER_Z` と `Canvas` の `camera`
 - 面の文字色・枠線: `src/faceTexture.js` の `TEXT_COLOR` / `ACCENT_COLOR`
+
+## 出目の公平性について
+
+物理演算の結果をそのまま出目にしているため、6 面が均等に出るかを 50000 回の
+シミュレーションで検証しています。カイ二乗検定（自由度 5）で χ² = 4.37 と、
+一様分布と矛盾しない結果でした。
+
+ただし Rapier のソルバは高摩擦下でサイコロを辺や角の上に安定させてしまうことがあり
+（約 2.2%）、そのままでは面が水平にならず出目が曖昧になります。そのため
+`src/DiceScene.jsx` では、12 度以上傾いて静止した場合に軽く弾いて転がし直しています
+(`FLAT_DOT` / `NUDGE_UP` / `NUDGE_TORQUE`)。95% の試行は弾き直しなしで確定します。

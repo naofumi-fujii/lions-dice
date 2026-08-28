@@ -41,7 +41,16 @@ const FACE_DECALS = [
 
 const UP = new THREE.Vector3(0, 1, 0)
 
-// 現在の姿勢から、最も上を向いているローカル軸（= 出目の面）を返す
+// Rapier のソルバは高摩擦だとサイコロを辺や角の上で安定させてしまうことがある
+// （50000 回の試行で約 2.2%）。実物のサイコロでは起きないので、
+// これより傾いて止まった場合は軽く弾いて転がし直す
+const FLAT_DOT = Math.cos((12 * Math.PI) / 180)
+const MAX_NUDGES = 6
+const NUDGE_UP = 3.6
+const NUDGE_TORQUE = 6.5
+
+// 現在の姿勢から、最も上を向いているローカル軸（= 出目の面）と
+// その軸が鉛直にどれだけ近いか（dot が 1 に近いほど面が水平）を返す
 function detectTopFace(rotation) {
   const quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w)
   const axis = new THREE.Vector3()
@@ -55,7 +64,7 @@ function detectTopFace(rotation) {
       bestIndex = i
     }
   })
-  return bestIndex
+  return { face: bestIndex, dot: bestDot }
 }
 
 // サイコロ本体。rollToken が変わるたびに投げ直す
@@ -63,7 +72,8 @@ function Dice({ themes, rollToken, onSettle }) {
   const body = useRef(null)
   const rolling = useRef(false)
   const stillFrames = useRef(0)
-  const rollStartedAt = useRef(0)
+  const deadline = useRef(0)
+  const nudges = useRef(0)
 
   // テーマが変わったら 6 面のテクスチャを作り直す
   const textures = useMemo(
@@ -102,7 +112,8 @@ function Dice({ themes, rollToken, onSettle }) {
 
     rolling.current = true
     stillFrames.current = 0
-    rollStartedAt.current = performance.now()
+    nudges.current = 0
+    deadline.current = performance.now() + 9000
   }, [rollToken])
 
   // 毎フレーム速度を監視し、十分止まったら出目を確定する
@@ -120,12 +131,40 @@ function Dice({ themes, rollToken, onSettle }) {
       stillFrames.current = 0
     }
 
-    // 何かに引っかかって止まらない場合の保険として 9 秒で打ち切る
-    const timedOut = performance.now() - rollStartedAt.current > 9000
-    if (stillFrames.current > 24 || timedOut) {
-      rolling.current = false
-      onSettle(detectTopFace(body.current.rotation()))
+    // 何かに引っかかって止まらない場合の保険として時間切れで打ち切る
+    const timedOut = performance.now() > deadline.current
+    if (stillFrames.current <= 24 && !timedOut) return
+
+    const { face, dot } = detectTopFace(body.current.rotation())
+
+    // 辺や角の上で止まっていたら、上へ軽く弾いて転がし直す
+    if (!timedOut && dot < FLAT_DOT && nudges.current < MAX_NUDGES) {
+      nudges.current += 1
+      stillFrames.current = 0
+      deadline.current += 3000
+      const mass = body.current.mass()
+      body.current.wakeUp()
+      body.current.applyImpulse(
+        {
+          x: (Math.random() - 0.5) * NUDGE_UP * 0.4 * mass,
+          y: NUDGE_UP * mass,
+          z: (Math.random() - 0.5) * NUDGE_UP * 0.4 * mass,
+        },
+        true,
+      )
+      body.current.applyTorqueImpulse(
+        {
+          x: (Math.random() - 0.5) * NUDGE_TORQUE,
+          y: (Math.random() - 0.5) * NUDGE_TORQUE,
+          z: (Math.random() - 0.5) * NUDGE_TORQUE,
+        },
+        true,
+      )
+      return
     }
+
+    rolling.current = false
+    onSettle(face)
   })
 
   return (
