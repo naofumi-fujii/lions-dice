@@ -75,6 +75,33 @@ body {
   color: transparent;
 }
 
+/* GitHub リポジトリへのリンク (src/App.jsx の github-link) */
+.github-link {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(224, 182, 77, 0.35);
+  background: var(--panel);
+  color: var(--gold-soft);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.github-link:hover {
+  opacity: 0.7;
+  transform: translateY(-1px);
+}
+
+.github-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 /* 出目の表示エリア */
 .result {
   position: absolute;
