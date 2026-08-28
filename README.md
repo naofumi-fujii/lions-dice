@@ -29,7 +29,7 @@ npm run dev
 ```
 
 既定の読み込み元は
-[asakai-talk-themes](https://github.com/Tsutomu-Ikeda/asakai-talk-themes) の
+[asakai-talk-themes](https://github.com/naofumi-fujii/asakai-talk-themes) の
 `data/asakai-talk-themes.json` です。取得は素の `fetch` なので、
 読み込み先が CORS を許可している必要があります。
 

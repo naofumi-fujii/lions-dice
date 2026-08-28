@@ -3,7 +3,7 @@
 
 // 既定の読み込み元（asakai-talk-themes のデータ）
 export const DEFAULT_SOURCE_URL =
-  'https://raw.githubusercontent.com/Tsutomu-Ikeda/asakai-talk-themes/refs/heads/main/data/asakai-talk-themes.json'
+  'https://raw.githubusercontent.com/naofumi-fujii/asakai-talk-themes/refs/heads/main/data/asakai-talk-themes.json'
 
 // JSON をテーマ文字列の配列に正規化する (src/themeSource.js)
 // 受け付ける形:
