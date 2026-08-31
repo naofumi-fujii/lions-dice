@@ -114,12 +114,24 @@ body {
   padding: 0 20px;
 }
 
-.result__hint,
+.result__hint-main,
 .result__rolling {
   margin: 0;
   font-size: 15px;
   letter-spacing: 0.14em;
   color: rgba(244, 247, 251, 0.66);
+}
+
+.result__hint {
+  text-align: center;
+}
+
+/* 編集できることを伝える補足行 (src/App.jsx の result__hint-sub) */
+.result__hint-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: rgba(224, 182, 77, 0.85);
 }
 
 .result__rolling {
@@ -213,6 +225,93 @@ body {
   padding: 9px 16px;
   font-size: 13px;
   font-weight: 600;
+}
+
+/* テーマ編集ボタンとその吹き出し (src/App.jsx の edit-control) */
+.edit-control {
+  position: relative;
+  display: flex;
+}
+
+.btn--edit {
+  border-color: rgba(224, 182, 77, 0.5);
+  color: var(--gold-soft);
+}
+
+/* 未体験のうちはボタンを光らせて編集機能に気づいてもらう */
+.btn--attention {
+  animation: attention 2.4s ease-in-out infinite;
+}
+
+.coachmark {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 40px));
+  padding: 10px 10px 10px 14px;
+  border: 1px solid rgba(224, 182, 77, 0.55);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(24, 46, 68, 0.96), rgba(9, 24, 38, 0.96));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  animation: coachmark-in 0.5s 0.6s cubic-bezier(0.16, 1.1, 0.3, 1) backwards;
+}
+
+/* 吹き出しの三角形（ボタンを指す） */
+.coachmark::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(224, 182, 77, 0.55);
+  border-top: none;
+  border-left: none;
+  background: rgba(9, 24, 38, 0.96);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.coachmark__text {
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: #f4f7fb;
+}
+
+.coachmark__text b {
+  color: var(--gold-soft);
+}
+
+.coachmark__close {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(244, 247, 251, 0.7);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.coachmark__close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #f4f7fb;
+}
+
+/* 吹き出しが出ている間はテロップを上へ逃がす (src/App.jsx の app--hinting) */
+.app--hinting .result {
+  bottom: 196px;
 }
 
 /* テーマ編集パネル */
@@ -344,6 +443,41 @@ textarea.editor__input {
   }
 }
 
+@keyframes attention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(224, 182, 77, 0);
+    border-color: rgba(224, 182, 77, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(224, 182, 77, 0.14);
+    border-color: rgba(224, 182, 77, 0.95);
+  }
+}
+
+@keyframes coachmark-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* アニメーションを控えたいユーザーには点滅・スライドを出さない */
+@media (prefers-reduced-motion: reduce) {
+  .btn--attention {
+    animation: none;
+    border-color: rgba(224, 182, 77, 0.95);
+  }
+
+  .coachmark {
+    animation: none;
+  }
+}
+
 @media (max-width: 640px) {
   .editor {
     top: auto;
@@ -355,5 +489,35 @@ textarea.editor__input {
 
   .result {
     bottom: 118px;
+  }
+
+  /* 横幅が狭いときは吹き出しを右寄せにして画面外へのはみ出しを防ぐ */
+  .coachmark {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 28px);
+    transform: none;
+    animation-name: coachmark-in-mobile;
+  }
+
+  .coachmark::after {
+    left: auto;
+    right: 48px;
+    transform: translate(0, -50%) rotate(45deg);
+  }
+
+  .app--hinting .result {
+    bottom: 182px;
+  }
+}
+
+@keyframes coachmark-in-mobile {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

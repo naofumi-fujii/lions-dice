@@ -7,9 +7,11 @@ import DiceScene from './DiceScene'
 import {
   DEFAULT_THEMES,
   FACE_COUNT,
+  loadEditorHintSeen,
   loadPool,
   loadSourceUrl,
   loadThemes,
+  saveEditorHintSeen,
   savePool,
   saveSourceUrl,
   saveThemes,
@@ -26,6 +28,7 @@ export default function App() {
   const [sourceUrl, setSourceUrl] = useState(loadSourceUrl)
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
+  const [hintSeen, setHintSeen] = useState(loadEditorHintSeen) // 編集機能のヒントを見せ終わったか
 
   useEffect(() => saveThemes(themes), [themes])
   useEffect(() => savePool(pool), [pool])
@@ -56,6 +59,19 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [roll])
+
+  // 編集機能のヒント（コーチマーク）を閉じ、以降は出さないよう記録する (src/App.jsx)
+  const dismissHint = useCallback(() => {
+    if (hintSeen) return
+    saveEditorHintSeen()
+    setHintSeen(true)
+  }, [hintSeen])
+
+  // 編集パネルを開閉する。開いた時点でヒントの役目は終わりなので閉じる (src/App.jsx)
+  const toggleEditor = useCallback(() => {
+    dismissHint()
+    setEditing((v) => !v)
+  }, [dismissHint])
 
   // 編集フォームの 1 面分を更新する
   const updateTheme = (index, value) => {
@@ -89,8 +105,11 @@ export default function App() {
     setStatus({ type: 'ok', text: `${pool.length} 件から 6 面を引き直しました` })
   }
 
+  // ヒント表示中は吹き出しとテロップが重ならないよう、レイアウトを少し上へずらす
+  const hinting = !hintSeen && !editing
+
   return (
-    <div className="app">
+    <div className={`app${hinting ? ' app--hinting' : ''}`}>
       <div className="stage">
         <DiceScene themes={themes} rollToken={rollToken} onSettle={handleSettle} />
       </div>
@@ -122,7 +141,10 @@ export default function App() {
           </div>
         )}
         {!rolling && result === null && rollToken === 0 && (
-          <p className="result__hint">サイコロを振ってトークテーマを決めよう</p>
+          <div className="result__hint">
+            <p className="result__hint-main">サイコロを振ってトークテーマを決めよう</p>
+            <p className="result__hint-sub">6面のテーマは ✏️ ボタンから自由に書き換えられます</p>
+          </div>
         )}
       </div>
 
@@ -135,14 +157,29 @@ export default function App() {
             6面を引き直す
           </button>
         )}
-        <button className="btn" onClick={() => setEditing((v) => !v)}>
-          {editing ? '閉じる' : 'テーマを編集'}
-        </button>
+        <div className="edit-control">
+          {hinting && (
+            <div className="coachmark" role="note">
+              <span className="coachmark__text">
+                サイコロの6面を<b>自分のテーマ</b>に書き換えられます
+              </span>
+              <button className="coachmark__close" onClick={dismissHint} aria-label="ヒントを閉じる">
+                ×
+              </button>
+            </div>
+          )}
+          <button
+            className={`btn btn--edit${hinting ? ' btn--attention' : ''}`}
+            onClick={toggleEditor}
+          >
+            {editing ? '閉じる' : '✏️ 6面のテーマを編集'}
+          </button>
+        </div>
       </div>
 
       {editing && (
         <aside className="editor">
-          <h2 className="editor__title">トークテーマ（6面）</h2>
+          <h2 className="editor__title">サイコロの6面に表示されるテーマ</h2>
           <ul className="editor__list">
             {themes.map((theme, i) => (
               <li className="editor__row" key={i}>
