@@ -7,7 +7,6 @@ import { DEFAULT_SOURCE_URL } from './themeSource'
 const STORAGE_KEY = 'lions-dice:themes'
 const POOL_STORAGE_KEY = 'lions-dice:pool'
 const SOURCE_URL_STORAGE_KEY = 'lions-dice:source-url'
-const EDITOR_HINT_STORAGE_KEY = 'lions-dice:editor-hint-seen'
 
 // サイコロ 6 面の初期テーマ
 export const DEFAULT_THEMES = [
@@ -80,24 +79,5 @@ export function saveSourceUrl(url) {
     localStorage.setItem(SOURCE_URL_STORAGE_KEY, url)
   } catch {
     // 書けない場合は黙って諦める
-  }
-}
-
-// 編集機能の存在を知らせるヒント（コーチマーク）を表示済みかどうかを返す (src/themes.js)
-// App.jsx の初回表示判定に使う
-export function loadEditorHintSeen() {
-  try {
-    return localStorage.getItem(EDITOR_HINT_STORAGE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-// ヒントを表示済みとして記録する (src/themes.js)
-export function saveEditorHintSeen() {
-  try {
-    localStorage.setItem(EDITOR_HINT_STORAGE_KEY, '1')
-  } catch {
-    // 書けない場合は黙って諦める（次回もヒントが出るだけ）
   }
 }
