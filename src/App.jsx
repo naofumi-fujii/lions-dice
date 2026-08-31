@@ -1,8 +1,9 @@
 // アプリのルート (src/App.jsx)
 // 3D シーン (DiceScene) の上に番組風の UI を重ね、
 // サイコロを振る操作・トークテーマの編集・外部 JSON からのテーマ読み込みを担当する
+// 6 面のテーマは常時表示のパネル (faces) に出し、その場で書き換えられるようにしている
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import DiceScene from './DiceScene'
 import {
   DEFAULT_THEMES,
@@ -16,16 +17,48 @@ import {
 } from './themes'
 import { DEFAULT_SOURCE_URL, fetchThemePool, pickThemes } from './themeSource'
 
+// 6 面のテーマ 1 行分の入力欄 (src/App.jsx)
+// 通常はテキストと同じ見た目で並び、クリック（フォーカス）するとそのまま書き換えられる。
+// 折り返しても全文が見えるよう、内容に合わせて高さを自動調整する
+function FaceInput({ index, value, onChange }) {
+  const ref = useRef(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+
+  return (
+    <textarea
+      ref={ref}
+      className="faces__input"
+      value={value}
+      rows={1}
+      maxLength={120}
+      placeholder={DEFAULT_THEMES[index]}
+      aria-label={`${index + 1} の面のテーマ`}
+      onChange={(e) => onChange(index, e.target.value)}
+    />
+  )
+}
+
+// 画面が狭いときはパネルを畳んだ状態で始める (src/App.jsx)
+function initialFacesOpen() {
+  return !window.matchMedia('(max-width: 640px)').matches
+}
+
 export default function App() {
   const [themes, setThemes] = useState(loadThemes)
   const [rollToken, setRollToken] = useState(0)
   const [rolling, setRolling] = useState(false)
   const [result, setResult] = useState(null) // 出た面のインデックス
-  const [editing, setEditing] = useState(false)
   const [pool, setPool] = useState(loadPool) // 読み込んだテーマ一覧
   const [sourceUrl, setSourceUrl] = useState(loadSourceUrl)
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
+  const [facesOpen, setFacesOpen] = useState(initialFacesOpen) // 6 面パネルを開いているか
 
   useEffect(() => saveThemes(themes), [themes])
   useEffect(() => savePool(pool), [pool])
@@ -58,9 +91,9 @@ export default function App() {
   }, [roll])
 
   // 編集フォームの 1 面分を更新する
-  const updateTheme = (index, value) => {
+  const updateTheme = useCallback((index, value) => {
     setThemes((prev) => prev.map((t, i) => (i === index ? value : t)))
-  }
+  }, [])
 
   // 入力された URL から JSON を読み込み、プールと 6 面のテーマを入れ替える (src/App.jsx)
   const loadFromUrl = async () => {
@@ -135,68 +168,79 @@ export default function App() {
             6面を引き直す
           </button>
         )}
-        <button className="btn" onClick={() => setEditing((v) => !v)}>
-          {editing ? '閉じる' : 'テーマを編集'}
-        </button>
       </div>
 
-      {editing && (
-        <aside className="editor">
-          <h2 className="editor__title">トークテーマ（6面）</h2>
-          <ul className="editor__list">
-            {themes.map((theme, i) => (
-              <li className="editor__row" key={i}>
-                <span className="editor__face">{i + 1}</span>
-                <textarea
-                  className="editor__input"
-                  value={theme}
-                  rows={2}
-                  maxLength={120}
-                  placeholder={DEFAULT_THEMES[i]}
-                  onChange={(e) => updateTheme(i, e.target.value)}
-                />
-              </li>
-            ))}
-          </ul>
-          <div className="editor__actions">
-            <button className="btn btn--ghost" onClick={() => setThemes(DEFAULT_THEMES)}>
-              初期値に戻す
-            </button>
-            <button className="btn btn--ghost" onClick={() => setThemes(Array(FACE_COUNT).fill(''))}>
-              すべて消す
-            </button>
-          </div>
-          <p className="editor__note">入力内容は自動保存されます</p>
+      <aside className={`faces${facesOpen ? '' : ' faces--closed'}`}>
+        <button
+          className="faces__toggle"
+          onClick={() => setFacesOpen((v) => !v)}
+          aria-expanded={facesOpen}
+        >
+          <span className="faces__title">6面のテーマ</span>
+          <span className="faces__lead">クリックで編集</span>
+          <span className="faces__chevron" aria-hidden="true">
+            ▾
+          </span>
+        </button>
 
-          <section className="editor__source">
-            <h3 className="editor__subtitle">JSON からまとめて読み込む</h3>
-            <input
-              className="editor__input"
-              value={sourceUrl}
-              placeholder={DEFAULT_SOURCE_URL}
-              spellCheck={false}
-              onChange={(e) => setSourceUrl(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadFromUrl()}
-            />
-            <div className="editor__actions">
-              <button className="btn btn--ghost" onClick={loadFromUrl} disabled={loadingPool}>
-                {loadingPool ? '読み込み中…' : 'URL から読み込む'}
+        {facesOpen && (
+          <div className="faces__body">
+            <ul className="faces__list">
+              {themes.map((theme, i) => (
+                <li className="faces__row" key={i}>
+                  <span className="faces__face">{i + 1}</span>
+                  <FaceInput index={i} value={theme} onChange={updateTheme} />
+                </li>
+              ))}
+            </ul>
+            <p className="faces__note">入力内容は自動保存され、サイコロの面にそのまま表示されます</p>
+
+            <div className="faces__actions">
+              <button className="btn btn--ghost" onClick={() => setThemes(DEFAULT_THEMES)}>
+                初期値に戻す
               </button>
-              <button className="btn btn--ghost" onClick={reshuffleFaces} disabled={pool.length === 0}>
-                6面を引き直す
+              <button
+                className="btn btn--ghost"
+                onClick={() => setThemes(Array(FACE_COUNT).fill(''))}
+              >
+                すべて消す
               </button>
             </div>
-            {status && (
-              <p className={`editor__note${status.type === 'error' ? ' editor__note--error' : ''}`}>
-                {status.text}
-              </p>
-            )}
-            {!status && pool.length > 0 && (
-              <p className="editor__note">読み込み済み: {pool.length} 件</p>
-            )}
-          </section>
-        </aside>
-      )}
+
+            <section className="faces__source">
+              <h3 className="faces__subtitle">JSON からまとめて読み込む</h3>
+              <input
+                className="faces__url"
+                value={sourceUrl}
+                placeholder={DEFAULT_SOURCE_URL}
+                spellCheck={false}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadFromUrl()}
+              />
+              <div className="faces__actions">
+                <button className="btn btn--ghost" onClick={loadFromUrl} disabled={loadingPool}>
+                  {loadingPool ? '読み込み中…' : 'URL から読み込む'}
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  onClick={reshuffleFaces}
+                  disabled={pool.length === 0}
+                >
+                  6面を引き直す
+                </button>
+              </div>
+              {status && (
+                <p className={`faces__note${status.type === 'error' ? ' faces__note--error' : ''}`}>
+                  {status.text}
+                </p>
+              )}
+              {!status && pool.length > 0 && (
+                <p className="faces__note">読み込み済み: {pool.length} 件</p>
+              )}
+            </section>
+          </div>
+        )}
+      </aside>
     </div>
   )
 }
