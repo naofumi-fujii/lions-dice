@@ -59,7 +59,6 @@ export default function App() {
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
   const [facesOpen, setFacesOpen] = useState(initialFacesOpen) // 6 面パネルを開いているか
-  const [sourceOpen, setSourceOpen] = useState(false) // JSON 読み込みセクションを開いているか
 
   useEffect(() => saveThemes(themes), [themes])
   useEffect(() => savePool(pool), [pool])
@@ -206,48 +205,39 @@ export default function App() {
               >
                 すべて消す
               </button>
-              <button
-                className="btn btn--ghost"
-                onClick={() => setSourceOpen((v) => !v)}
-                aria-expanded={sourceOpen}
-              >
-                JSON から読み込む …
-              </button>
             </div>
 
-            {sourceOpen && (
-              <section className="faces__source">
-                <h3 className="faces__subtitle">JSON からまとめて読み込む</h3>
-                <input
-                  className="faces__url"
-                  value={sourceUrl}
-                  placeholder={DEFAULT_SOURCE_URL}
-                  spellCheck={false}
-                  onChange={(e) => setSourceUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadFromUrl()}
-                />
-                <div className="faces__actions">
-                  <button className="btn btn--ghost" onClick={loadFromUrl} disabled={loadingPool}>
-                    {loadingPool ? '読み込み中…' : 'URL から読み込む'}
-                  </button>
-                  <button
-                    className="btn btn--ghost"
-                    onClick={reshuffleFaces}
-                    disabled={pool.length === 0}
-                  >
-                    6面を引き直す
-                  </button>
-                </div>
-                {status && (
-                  <p className={`faces__note${status.type === 'error' ? ' faces__note--error' : ''}`}>
-                    {status.text}
-                  </p>
-                )}
-                {!status && pool.length > 0 && (
-                  <p className="faces__note">読み込み済み: {pool.length} 件</p>
-                )}
-              </section>
-            )}
+            <section className="faces__source">
+              <h3 className="faces__subtitle">JSON からまとめて読み込む</h3>
+              <input
+                className="faces__url"
+                value={sourceUrl}
+                placeholder={DEFAULT_SOURCE_URL}
+                spellCheck={false}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadFromUrl()}
+              />
+              <div className="faces__actions">
+                <button className="btn btn--ghost" onClick={loadFromUrl} disabled={loadingPool}>
+                  {loadingPool ? '読み込み中…' : 'URL から読み込む'}
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  onClick={reshuffleFaces}
+                  disabled={pool.length === 0}
+                >
+                  6面を引き直す
+                </button>
+              </div>
+              {status && (
+                <p className={`faces__note${status.type === 'error' ? ' faces__note--error' : ''}`}>
+                  {status.text}
+                </p>
+              )}
+              {!status && pool.length > 0 && (
+                <p className="faces__note">読み込み済み: {pool.length} 件</p>
+              )}
+            </section>
           </div>
         )}
       </aside>
