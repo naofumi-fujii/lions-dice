@@ -9,8 +9,16 @@ import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { createFaceTexture } from './faceTexture'
 
-const DICE_SIZE = 1.4
+const DICE_SIZE = 1.7
 const DICE_HALF = DICE_SIZE / 2
+// 番組で使われていたサイコロは全体的に丸みを帯びた大きな箱なので、
+// 角を大きく落として大きめに作る。面の平らな部分は DICE_SIZE - 角丸 * 2
+const DICE_CORNER_RADIUS = 0.3
+// 面の色パネルが届く範囲。丸みの手前で止めて白い縁をわずかに残す
+const DECAL_EXTENT = DICE_HALF * 0.94
+const DECAL_SEGMENTS = 24
+// パネルをサイコロ表面から浮かせる量。0 だと本体と重なってちらつく
+const DECAL_LIFT = 0.006
 // 転がる範囲は横に広く奥行きは浅い帯にし、中心を奥へずらす。
 // こうすると画面下部の結果テロップとサイコロが重ならない
 const ARENA_HALF_X = 3.0
@@ -29,15 +37,36 @@ const FACE_AXES = [
   [0, 0, -1], // 5: -Z
 ]
 
-// 各面のテキストプレーンを面の外側に少しだけ浮かせて貼るための座標と回転
-const FACE_DECALS = [
-  { position: [DICE_HALF + 0.004, 0, 0], rotation: [0, Math.PI / 2, 0] },
-  { position: [-DICE_HALF - 0.004, 0, 0], rotation: [0, -Math.PI / 2, 0] },
-  { position: [0, DICE_HALF + 0.004, 0], rotation: [-Math.PI / 2, 0, 0] },
-  { position: [0, -DICE_HALF - 0.004, 0], rotation: [Math.PI / 2, 0, 0] },
-  { position: [0, 0, DICE_HALF + 0.004], rotation: [0, 0, 0] },
-  { position: [0, 0, -DICE_HALF - 0.004], rotation: [0, Math.PI, 0] },
+// 各面の色パネルを向ける回転。パネルの位置は形状側で表面に合わせるので回転だけでよい
+const FACE_ROTATIONS = [
+  [0, Math.PI / 2, 0], // 0: +X
+  [0, -Math.PI / 2, 0], // 1: -X
+  [-Math.PI / 2, 0, 0], // 2: +Y
+  [Math.PI / 2, 0, 0], // 3: -Y
+  [0, 0, 0], // 4: +Z
+  [0, Math.PI, 0], // 5: -Z
 ]
+
+// 色パネル用の形状 (src/DiceScene.jsx)
+// 平らなプレーンだと角の丸みから浮くので、格子状に分割した面を
+// 角丸サイコロの表面の高さへ押し出して、丸みに沿った 1 枚の面にする
+function createDecalGeometry() {
+  const geometry = new THREE.PlaneGeometry(DECAL_EXTENT * 2, DECAL_EXTENT * 2, DECAL_SEGMENTS, DECAL_SEGMENTS)
+  const position = geometry.attributes.position
+  const flat = DICE_HALF - DICE_CORNER_RADIUS
+  for (let i = 0; i < position.count; i += 1) {
+    const overX = Math.max(0, Math.abs(position.getX(i)) - flat)
+    const overY = Math.max(0, Math.abs(position.getY(i)) - flat)
+    const over = Math.min(Math.hypot(overX, overY), DICE_CORNER_RADIUS)
+    const bulge = Math.sqrt(Math.max(0, DICE_CORNER_RADIUS * DICE_CORNER_RADIUS - over * over))
+    position.setZ(i, flat + bulge + DECAL_LIFT)
+  }
+  position.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+const DECAL_GEOMETRY = createDecalGeometry()
 
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -77,7 +106,7 @@ function Dice({ themes, rollToken, onSettle }) {
 
   // テーマが変わったら 6 面のテクスチャを作り直す
   const textures = useMemo(
-    () => themes.map((text, i) => createFaceTexture(text, i + 1)),
+    () => themes.map((text, i) => createFaceTexture(text, i)),
     [themes],
   )
 
@@ -179,16 +208,34 @@ function Dice({ themes, rollToken, onSettle }) {
       canSleep
     >
       <CuboidCollider args={[DICE_HALF, DICE_HALF, DICE_HALF]} density={2.2} />
-      <RoundedBox args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]} radius={0.17} smoothness={5} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#f6f1e6" roughness={0.34} clearcoat={0.9} clearcoatRoughness={0.18} />
+      <RoundedBox
+        args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]}
+        radius={DICE_CORNER_RADIUS}
+        smoothness={6}
+        castShadow
+        receiveShadow
+      >
+        {/* テカらせず、起毛した布で包んだような白いマット仕上げにする */}
+        <meshPhysicalMaterial
+          color="#f7f3ea"
+          roughness={0.72}
+          clearcoat={0.06}
+          clearcoatRoughness={0.8}
+          sheen={0.5}
+          sheenRoughness={0.85}
+          sheenColor="#fff6e6"
+        />
       </RoundedBox>
-      {FACE_DECALS.map((decal, i) => (
-        <mesh key={i} position={decal.position} rotation={decal.rotation}>
-          <planeGeometry args={[DICE_SIZE * 0.72, DICE_SIZE * 0.72]} />
+      {FACE_ROTATIONS.map((rotation, i) => (
+        <mesh key={i} rotation={rotation} geometry={DECAL_GEOMETRY}>
+          {/* 暗い背景だとパステルが沈むので、同じ絵を弱い自発光に足して色を起こす */}
           <meshStandardMaterial
             map={textures[i]}
+            emissiveMap={textures[i]}
+            emissive="#ffffff"
+            emissiveIntensity={0.16}
             transparent
-            roughness={0.5}
+            roughness={0.72}
             depthWrite={false}
             polygonOffset
             polygonOffsetFactor={-4}

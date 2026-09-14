@@ -59,9 +59,9 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 
 - 初期テーマ: `src/themes.js` の `DEFAULT_THEMES`
 - 読み込み元 URL の既定値: `src/themeSource.js` の `DEFAULT_SOURCE_URL`
-- サイコロの質感 / 大きさ: `src/DiceScene.jsx` の `DICE_SIZE` と `meshPhysicalMaterial`
+- サイコロの質感 / 大きさ / 角の丸み: `src/DiceScene.jsx` の `DICE_SIZE`・`DICE_CORNER_RADIUS`・`meshPhysicalMaterial`
 - 転がる範囲とカメラ: `ARENA_HALF_X` / `ARENA_HALF_Z` / `ARENA_CENTER_Z` と `Canvas` の `camera`
-- 面の文字色・枠線: `src/faceTexture.js` の `TEXT_COLOR` / `ACCENT_COLOR`
+- 面の文字色・地色: `src/faceTexture.js` の `TEXT_COLOR` / `FACE_COLORS`（面ごとのパステル 6 色）
 
 ## 出目の公平性について
 
