@@ -17,6 +17,7 @@ npm run dev
   （`localStorage` に自動保存。画面が狭いときは下部の折りたたみバーになります）
 - パネル内の **JSON からまとめて読み込む** で、外部 JSON のテーマ一覧を取り込み、
   そこからランダムに 6 面へ割り当て（**6面を引き直す** で引き直し）
+- 面のテーマを `今日の当たり目` / `当たり目` / `当` にすると、文字の代わりに赤い「当」の面になる
 - ドラッグで視点回転、ホイールでズーム
 
 ## 読み込める JSON の形式
@@ -51,6 +52,7 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 | `src/App.jsx` | UI 全体。振る操作・結果表示・テーマ編集 |
 | `src/DiceScene.jsx` | 3D シーン。物理演算と出目の判定 |
 | `src/faceTexture.js` | 各面のテキストを Canvas に描いてテクスチャ化 |
+| `src/stageTexture.js` | 床の市松模様と背景のグラデーションをテクスチャ化 |
 | `src/themes.js` | トークテーマの初期値と localStorage 永続化 |
 | `src/themeSource.js` | 外部 JSON の取得とテーマ一覧への正規化・抽選 |
 | `src/styles.css` | 番組風オーバーレイ UI のスタイル |
@@ -59,9 +61,11 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 
 - 初期テーマ: `src/themes.js` の `DEFAULT_THEMES`
 - 読み込み元 URL の既定値: `src/themeSource.js` の `DEFAULT_SOURCE_URL`
-- サイコロの質感 / 大きさ: `src/DiceScene.jsx` の `DICE_SIZE` と `meshPhysicalMaterial`
+- サイコロの質感 / 大きさ / 角の丸み: `src/DiceScene.jsx` の `DICE_SIZE`・`DICE_CORNER_RADIUS`・`meshPhysicalMaterial`
 - 転がる範囲とカメラ: `ARENA_HALF_X` / `ARENA_HALF_Z` / `ARENA_CENTER_Z` と `Canvas` の `camera`
-- 面の文字色・枠線: `src/faceTexture.js` の `TEXT_COLOR` / `ACCENT_COLOR`
+- 面の文字色・地色: `src/faceTexture.js` の `TEXT_COLOR` / `FACE_COLORS`（面ごとのパステル 6 色）
+- 当たり目として扱う言い回し: `src/faceTexture.js` の `HIT_FACE_PATTERN`
+- 床の市松模様・背景の色: `src/stageTexture.js` の `CHECKER_COLORS` / `BACKDROP_STOPS`
 
 ## 出目の公平性について
 

@@ -8,15 +8,31 @@ import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { createFaceTexture } from './faceTexture'
+import { createBackdropTexture, createCheckerTexture } from './stageTexture'
 
-const DICE_SIZE = 1.4
+const DICE_SIZE = 1.7
 const DICE_HALF = DICE_SIZE / 2
+// 番組で使われていたサイコロは全体的に丸みを帯びた大きな箱なので、
+// 角を大きく落として大きめに作る。面の平らな部分は DICE_SIZE - 角丸 * 2
+const DICE_CORNER_RADIUS = 0.3
+// 面の色パネルが届く範囲。丸みの手前で止めて白い縁をわずかに残す
+const DECAL_EXTENT = DICE_HALF * 0.94
+const DECAL_SEGMENTS = 24
+// パネルをサイコロ表面から浮かせる量。0 だと本体と重なってちらつく
+const DECAL_LIFT = 0.006
 // 転がる範囲は横に広く奥行きは浅い帯にし、中心を奥へずらす。
 // こうすると画面下部の結果テロップとサイコロが重ならない
 const ARENA_HALF_X = 3.0
 const ARENA_HALF_Z = 1.8
 const ARENA_CENTER_Z = -0.8
 const WALL_HEIGHT = 9
+// 市松模様のマット。サイコロが転がる範囲より少しだけ大きくする
+const MAT_MARGIN = 0.5
+const MAT_LIFT = 0.002
+// 背景の壁。スタジオのホリゾントのつもりで、床の奥に大きく立てる
+const BACKDROP_WIDTH = 60
+const BACKDROP_HEIGHT = 26
+const BACKDROP_Z = ARENA_CENTER_Z - 13
 
 // 面インデックスとサイコロのローカル軸の対応
 // createFaceTexture / themes.js の配列順と一致させること
@@ -29,15 +45,36 @@ const FACE_AXES = [
   [0, 0, -1], // 5: -Z
 ]
 
-// 各面のテキストプレーンを面の外側に少しだけ浮かせて貼るための座標と回転
-const FACE_DECALS = [
-  { position: [DICE_HALF + 0.004, 0, 0], rotation: [0, Math.PI / 2, 0] },
-  { position: [-DICE_HALF - 0.004, 0, 0], rotation: [0, -Math.PI / 2, 0] },
-  { position: [0, DICE_HALF + 0.004, 0], rotation: [-Math.PI / 2, 0, 0] },
-  { position: [0, -DICE_HALF - 0.004, 0], rotation: [Math.PI / 2, 0, 0] },
-  { position: [0, 0, DICE_HALF + 0.004], rotation: [0, 0, 0] },
-  { position: [0, 0, -DICE_HALF - 0.004], rotation: [0, Math.PI, 0] },
+// 各面の色パネルを向ける回転。パネルの位置は形状側で表面に合わせるので回転だけでよい
+const FACE_ROTATIONS = [
+  [0, Math.PI / 2, 0], // 0: +X
+  [0, -Math.PI / 2, 0], // 1: -X
+  [-Math.PI / 2, 0, 0], // 2: +Y
+  [Math.PI / 2, 0, 0], // 3: -Y
+  [0, 0, 0], // 4: +Z
+  [0, Math.PI, 0], // 5: -Z
 ]
+
+// 色パネル用の形状 (src/DiceScene.jsx)
+// 平らなプレーンだと角の丸みから浮くので、格子状に分割した面を
+// 角丸サイコロの表面の高さへ押し出して、丸みに沿った 1 枚の面にする
+function createDecalGeometry() {
+  const geometry = new THREE.PlaneGeometry(DECAL_EXTENT * 2, DECAL_EXTENT * 2, DECAL_SEGMENTS, DECAL_SEGMENTS)
+  const position = geometry.attributes.position
+  const flat = DICE_HALF - DICE_CORNER_RADIUS
+  for (let i = 0; i < position.count; i += 1) {
+    const overX = Math.max(0, Math.abs(position.getX(i)) - flat)
+    const overY = Math.max(0, Math.abs(position.getY(i)) - flat)
+    const over = Math.min(Math.hypot(overX, overY), DICE_CORNER_RADIUS)
+    const bulge = Math.sqrt(Math.max(0, DICE_CORNER_RADIUS * DICE_CORNER_RADIUS - over * over))
+    position.setZ(i, flat + bulge + DECAL_LIFT)
+  }
+  position.needsUpdate = true
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+const DECAL_GEOMETRY = createDecalGeometry()
 
 const UP = new THREE.Vector3(0, 1, 0)
 
@@ -77,7 +114,7 @@ function Dice({ themes, rollToken, onSettle }) {
 
   // テーマが変わったら 6 面のテクスチャを作り直す
   const textures = useMemo(
-    () => themes.map((text, i) => createFaceTexture(text, i + 1)),
+    () => themes.map((text, i) => createFaceTexture(text, i)),
     [themes],
   )
 
@@ -179,16 +216,34 @@ function Dice({ themes, rollToken, onSettle }) {
       canSleep
     >
       <CuboidCollider args={[DICE_HALF, DICE_HALF, DICE_HALF]} density={2.2} />
-      <RoundedBox args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]} radius={0.17} smoothness={5} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#f6f1e6" roughness={0.34} clearcoat={0.9} clearcoatRoughness={0.18} />
+      <RoundedBox
+        args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]}
+        radius={DICE_CORNER_RADIUS}
+        smoothness={6}
+        castShadow
+        receiveShadow
+      >
+        {/* テカらせず、起毛した布で包んだような白いマット仕上げにする */}
+        <meshPhysicalMaterial
+          color="#f7f3ea"
+          roughness={0.72}
+          clearcoat={0.06}
+          clearcoatRoughness={0.8}
+          sheen={0.5}
+          sheenRoughness={0.85}
+          sheenColor="#fff6e6"
+        />
       </RoundedBox>
-      {FACE_DECALS.map((decal, i) => (
-        <mesh key={i} position={decal.position} rotation={decal.rotation}>
-          <planeGeometry args={[DICE_SIZE * 0.72, DICE_SIZE * 0.72]} />
+      {FACE_ROTATIONS.map((rotation, i) => (
+        <mesh key={i} rotation={rotation} geometry={DECAL_GEOMETRY}>
+          {/* 暗い背景だとパステルが沈むので、同じ絵を弱い自発光に足して色を起こす */}
           <meshStandardMaterial
             map={textures[i]}
+            emissiveMap={textures[i]}
+            emissive="#ffffff"
+            emissiveIntensity={0.16}
             transparent
-            roughness={0.5}
+            roughness={0.72}
             depthWrite={false}
             polygonOffset
             polygonOffsetFactor={-4}
@@ -200,7 +255,7 @@ function Dice({ themes, rollToken, onSettle }) {
 }
 
 // 床と、サイコロが画面外へ飛び出さないための見えない壁
-function Arena() {
+function Arena({ checker }) {
   return (
     <RigidBody type="fixed" colliders={false} friction={0.85} restitution={0.2}>
       <CuboidCollider args={[ARENA_HALF_X, 0.5, ARENA_HALF_Z]} position={[0, -0.5, ARENA_CENTER_Z]} />
@@ -220,9 +275,14 @@ function Arena() {
         args={[ARENA_HALF_X, WALL_HEIGHT, 0.5]}
         position={[0, WALL_HEIGHT, ARENA_CENTER_Z - ARENA_HALF_Z - 0.5]}
       />
+      {/* スタジオの床。明るいクリームのフロアに、転がる範囲だけ市松模様のマットを敷く */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[60, 60]} />
-        <meshStandardMaterial color="#15304a" roughness={0.65} metalness={0.1} />
+        <meshStandardMaterial color="#f2e3cd" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, MAT_LIFT, ARENA_CENTER_Z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[(ARENA_HALF_X + MAT_MARGIN) * 2, (ARENA_HALF_Z + MAT_MARGIN) * 2]} />
+        <meshStandardMaterial map={checker} roughness={0.85} />
       </mesh>
     </RigidBody>
   )
@@ -230,26 +290,37 @@ function Arena() {
 
 // シーン全体。App から themes / rollToken を受け取り、出目を onSettle で返す
 export default function DiceScene({ themes, rollToken, onSettle }) {
+  // 床と背景のテクスチャは一度だけ作って使い回す
+  const backdrop = useMemo(() => createBackdropTexture(), [])
+  const checker = useMemo(() => createCheckerTexture(), [])
+  useEffect(() => () => [backdrop, checker].forEach((t) => t.dispose()), [backdrop, checker])
+
   return (
     <Canvas shadows camera={{ position: [0, 5.2, 7.8], fov: 42 }} dpr={[1, 2]}>
-      <color attach="background" args={['#081522']} />
-      <fog attach="fog" args={['#081522', 12, 26]} />
+      <color attach="background" args={['#f7dfc7']} />
+      <fog attach="fog" args={['#f7dfc7', 20, 46]} />
 
-      <ambientLight intensity={0.45} />
-      <hemisphereLight args={['#9fd0ff', '#0b1c2c', 0.5]} />
+      {/* 背景の壁。照明の影響を受けない板にして、いつも同じ明るさで立たせる */}
+      <mesh position={[0, BACKDROP_HEIGHT / 2 - 2, BACKDROP_Z]}>
+        <planeGeometry args={[BACKDROP_WIDTH, BACKDROP_HEIGHT]} />
+        <meshBasicMaterial map={backdrop} fog={false} toneMapped={false} />
+      </mesh>
+
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={['#fff4e2', '#e6cfae', 0.7]} />
       <spotLight
         position={[4, 11, 6]}
         angle={0.55}
         penumbra={0.6}
-        intensity={420}
+        intensity={360}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0005}
       />
-      <directionalLight position={[-6, 8, -4]} intensity={1.1} color="#ffd9a0" />
+      <directionalLight position={[-6, 8, -4]} intensity={0.9} color="#ffe3bd" />
 
       <Physics gravity={[0, -26, 0]}>
-        <Arena />
+        <Arena checker={checker} />
         <Dice themes={themes} rollToken={rollToken} onSettle={onSettle} />
       </Physics>
 
