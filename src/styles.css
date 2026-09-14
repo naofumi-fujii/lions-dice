@@ -5,6 +5,8 @@
   --gold-soft: #f3d894;
   --ink: #071320;
   --panel: rgba(9, 24, 38, 0.82);
+  /* 明るいスタジオの背景に直接重ねる文字の色 */
+  --on-stage: #5a3320;
   color-scheme: dark;
 }
 
@@ -20,7 +22,7 @@ body,
 }
 
 body {
-  background: var(--ink);
+  background: #f7dfc7;
   color: #f4f7fb;
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
   overflow: hidden;
@@ -42,7 +44,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 22%, rgba(255, 226, 160, 0.16), transparent 58%);
+  background: radial-gradient(circle at 50% 18%, rgba(255, 244, 214, 0.22), transparent 62%);
 }
 
 .header {
@@ -59,7 +61,7 @@ body {
   margin: 0;
   font-size: 12px;
   letter-spacing: 0.42em;
-  color: var(--gold);
+  color: #b5642f;
   text-indent: 0.42em;
 }
 
@@ -68,11 +70,8 @@ body {
   font-size: clamp(24px, 4.4vw, 42px);
   font-weight: 800;
   letter-spacing: 0.12em;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.65);
-  background: linear-gradient(180deg, #ffffff 30%, var(--gold-soft) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--on-stage);
+  text-shadow: 0 2px 14px rgba(255, 248, 232, 0.75);
 }
 
 /* GitHub リポジトリへのリンク (src/App.jsx の github-link) */
@@ -119,7 +118,8 @@ body {
   margin: 0;
   font-size: 15px;
   letter-spacing: 0.14em;
-  color: rgba(244, 247, 251, 0.66);
+  color: rgba(90, 51, 32, 0.78);
+  text-shadow: 0 1px 10px rgba(255, 248, 232, 0.8);
 }
 
 .result__rolling {

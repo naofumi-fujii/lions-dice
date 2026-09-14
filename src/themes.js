@@ -9,8 +9,9 @@ const POOL_STORAGE_KEY = 'lions-dice:pool'
 const SOURCE_URL_STORAGE_KEY = 'lions-dice:source-url'
 
 // サイコロ 6 面の初期テーマ
+// 1 面目は当たり目。この言い回しのときだけ faceTexture.js が赤い「当」の面を描く
 export const DEFAULT_THEMES = [
-  '最近ハマってること',
+  '今日の当たり目',
   '人生で一番の無駄遣い',
   '子どもの頃の将来の夢',
   '実はちょっと苦手なもの',

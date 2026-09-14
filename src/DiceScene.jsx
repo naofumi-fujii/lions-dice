@@ -8,6 +8,7 @@ import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import * as THREE from 'three'
 import { createFaceTexture } from './faceTexture'
+import { createBackdropTexture, createCheckerTexture } from './stageTexture'
 
 const DICE_SIZE = 1.7
 const DICE_HALF = DICE_SIZE / 2
@@ -25,6 +26,13 @@ const ARENA_HALF_X = 3.0
 const ARENA_HALF_Z = 1.8
 const ARENA_CENTER_Z = -0.8
 const WALL_HEIGHT = 9
+// 市松模様のマット。サイコロが転がる範囲より少しだけ大きくする
+const MAT_MARGIN = 0.5
+const MAT_LIFT = 0.002
+// 背景の壁。スタジオのホリゾントのつもりで、床の奥に大きく立てる
+const BACKDROP_WIDTH = 60
+const BACKDROP_HEIGHT = 26
+const BACKDROP_Z = ARENA_CENTER_Z - 13
 
 // 面インデックスとサイコロのローカル軸の対応
 // createFaceTexture / themes.js の配列順と一致させること
@@ -247,7 +255,7 @@ function Dice({ themes, rollToken, onSettle }) {
 }
 
 // 床と、サイコロが画面外へ飛び出さないための見えない壁
-function Arena() {
+function Arena({ checker }) {
   return (
     <RigidBody type="fixed" colliders={false} friction={0.85} restitution={0.2}>
       <CuboidCollider args={[ARENA_HALF_X, 0.5, ARENA_HALF_Z]} position={[0, -0.5, ARENA_CENTER_Z]} />
@@ -267,9 +275,14 @@ function Arena() {
         args={[ARENA_HALF_X, WALL_HEIGHT, 0.5]}
         position={[0, WALL_HEIGHT, ARENA_CENTER_Z - ARENA_HALF_Z - 0.5]}
       />
+      {/* スタジオの床。明るいクリームのフロアに、転がる範囲だけ市松模様のマットを敷く */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[60, 60]} />
-        <meshStandardMaterial color="#15304a" roughness={0.65} metalness={0.1} />
+        <meshStandardMaterial color="#f2e3cd" roughness={0.9} />
+      </mesh>
+      <mesh position={[0, MAT_LIFT, ARENA_CENTER_Z]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[(ARENA_HALF_X + MAT_MARGIN) * 2, (ARENA_HALF_Z + MAT_MARGIN) * 2]} />
+        <meshStandardMaterial map={checker} roughness={0.85} />
       </mesh>
     </RigidBody>
   )
@@ -277,26 +290,37 @@ function Arena() {
 
 // シーン全体。App から themes / rollToken を受け取り、出目を onSettle で返す
 export default function DiceScene({ themes, rollToken, onSettle }) {
+  // 床と背景のテクスチャは一度だけ作って使い回す
+  const backdrop = useMemo(() => createBackdropTexture(), [])
+  const checker = useMemo(() => createCheckerTexture(), [])
+  useEffect(() => () => [backdrop, checker].forEach((t) => t.dispose()), [backdrop, checker])
+
   return (
     <Canvas shadows camera={{ position: [0, 5.2, 7.8], fov: 42 }} dpr={[1, 2]}>
-      <color attach="background" args={['#081522']} />
-      <fog attach="fog" args={['#081522', 12, 26]} />
+      <color attach="background" args={['#f7dfc7']} />
+      <fog attach="fog" args={['#f7dfc7', 20, 46]} />
 
-      <ambientLight intensity={0.45} />
-      <hemisphereLight args={['#9fd0ff', '#0b1c2c', 0.5]} />
+      {/* 背景の壁。照明の影響を受けない板にして、いつも同じ明るさで立たせる */}
+      <mesh position={[0, BACKDROP_HEIGHT / 2 - 2, BACKDROP_Z]}>
+        <planeGeometry args={[BACKDROP_WIDTH, BACKDROP_HEIGHT]} />
+        <meshBasicMaterial map={backdrop} fog={false} toneMapped={false} />
+      </mesh>
+
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={['#fff4e2', '#e6cfae', 0.7]} />
       <spotLight
         position={[4, 11, 6]}
         angle={0.55}
         penumbra={0.6}
-        intensity={420}
+        intensity={360}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0005}
       />
-      <directionalLight position={[-6, 8, -4]} intensity={1.1} color="#ffd9a0" />
+      <directionalLight position={[-6, 8, -4]} intensity={0.9} color="#ffe3bd" />
 
       <Physics gravity={[0, -26, 0]}>
-        <Arena />
+        <Arena checker={checker} />
         <Dice themes={themes} rollToken={rollToken} onSettle={onSettle} />
       </Physics>
 
