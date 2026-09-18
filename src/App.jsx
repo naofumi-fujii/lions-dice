@@ -1,6 +1,7 @@
 // アプリのルート (src/App.jsx)
 // 3D シーン (DiceScene) の上に番組風の UI を重ね、
 // サイコロを振る操作・トークテーマの編集・外部 JSON からのテーマ読み込みを担当する
+// テーマ一覧は起動時に既定の JSON から自動で読み込む（URL 入力は上級者向けの上書き手段）
 // 6 面のテーマは常時表示のパネル (faces) に出し、その場で書き換えられるようにしている
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -8,6 +9,7 @@ import DiceScene from './DiceScene'
 import {
   DEFAULT_THEMES,
   FACE_COUNT,
+  hasStoredThemes,
   loadPool,
   loadSourceUrl,
   loadThemes,
@@ -59,10 +61,50 @@ export default function App() {
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
   const [facesOpen, setFacesOpen] = useState(initialFacesOpen) // 6 面パネルを開いているか
+  // 初回レンダー時点で保存済みのテーマがあったか。
+  // マウント後は saveThemes で必ず書き込まれるため、render 中に確定させておく
+  const hadStoredThemes = useRef(hasStoredThemes())
 
   useEffect(() => saveThemes(themes), [themes])
   useEffect(() => savePool(pool), [pool])
   useEffect(() => saveSourceUrl(sourceUrl), [sourceUrl])
+
+  // 起動時に既定の JSON を自動で読み込む (src/App.jsx)
+  // 「URL から読み込む」操作が初見では分かりづらいため、何もしなくてもテーマが入った状態で始める。
+  // 編集済みのテーマが保存されている場合は上書きせず、プール（引き直し用の一覧）だけ更新する
+  useEffect(() => {
+    let cancelled = false
+    const url = sourceUrl.trim()
+    if (!url) return
+    const applyToFaces = !hadStoredThemes.current
+
+    setLoadingPool(true)
+    fetchThemePool(url)
+      .then((loaded) => {
+        if (cancelled) return
+        setPool(loaded)
+        if (applyToFaces) setThemes(pickThemes(loaded, FACE_COUNT))
+        setStatus({
+          type: 'ok',
+          text: applyToFaces
+            ? `${loaded.length} 件を読み込み、6 面に割り当てました`
+            : `${loaded.length} 件を読み込みました`,
+        })
+      })
+      .catch((e) => {
+        // 失敗しても DEFAULT_THEMES のまま遊べるので、面は触らずメッセージだけ出す
+        if (!cancelled) setStatus({ type: 'error', text: e.message })
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPool(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // 起動時の 1 回だけ実行する（以降は「URL から読み込む」ボタン経由）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // サイコロを振る。DiceScene 側は rollToken の変化を検知して投げ直す
   const roll = useCallback(() => {
@@ -155,7 +197,9 @@ export default function App() {
           </div>
         )}
         {!rolling && result === null && rollToken === 0 && (
-          <p className="result__hint">サイコロを振ってトークテーマを決めよう</p>
+          <p className="result__hint">
+            {loadingPool ? 'テーマを読み込んでいます…' : 'サイコロを振ってトークテーマを決めよう'}
+          </p>
         )}
       </div>
 
@@ -209,6 +253,9 @@ export default function App() {
 
             <section className="faces__source">
               <h3 className="faces__subtitle">JSON からまとめて読み込む</h3>
+              <p className="faces__note">
+                起動時にこの URL から自動で読み込みます。別の一覧を使いたいときだけ書き換えてください
+              </p>
               <input
                 className="faces__url"
                 value={sourceUrl}
@@ -219,7 +266,7 @@ export default function App() {
               />
               <div className="faces__actions">
                 <button className="btn btn--ghost" onClick={loadFromUrl} disabled={loadingPool}>
-                  {loadingPool ? '読み込み中…' : 'URL から読み込む'}
+                  {loadingPool ? '読み込み中…' : 'この URL から読み込み直す'}
                 </button>
                 <button
                   className="btn btn--ghost"
