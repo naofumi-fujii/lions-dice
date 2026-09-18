@@ -15,8 +15,9 @@ npm run dev
 - **サイコロを振る** ボタン、または **スペースキー** で振る
 - 画面左の **6面のテーマ** パネルは常時表示。各行をクリックすればその場で書き換えられます
   （`localStorage` に自動保存。画面が狭いときは下部の折りたたみバーになります）
-- パネル内の **JSON からまとめて読み込む** で、外部 JSON のテーマ一覧を取り込み、
-  そこからランダムに 6 面へ割り当て（**6面を引き直す** で引き直し）
+- 起動時に既定の JSON（後述）を自動で読み込み、そこからランダムに 6 面へ割り当てます
+  （**6面を引き直す** で引き直し。初回以降、テーマを編集済みの場合は面を上書きせず一覧だけ更新します）
+- 別の一覧を使いたいときは、パネル内の **JSON からまとめて読み込む** の URL を書き換えて読み込み直します
 - 面のテーマを `今日の当たり目` / `当たり目` / `当` にすると、文字の代わりに赤い「当」の面になる
 - ドラッグで視点回転、ホイールでズーム
 
@@ -32,8 +33,9 @@ npm run dev
 
 既定の読み込み元は
 [asakai-talk-themes](https://github.com/naofumi-fujii/asakai-talk-themes) の
-`data/asakai-talk-themes.json` です。取得は素の `fetch` なので、
-読み込み先が CORS を許可している必要があります。
+`data/asakai-talk-themes.json` で、起動時に自動で取得します。取得は素の `fetch` なので、
+読み込み先が CORS を許可している必要があります。読み込みに失敗した場合は
+`DEFAULT_THEMES` のまま遊べます（パネルにエラーメッセージを表示）。
 
 ## 技術構成
 
@@ -59,7 +61,7 @@ Node のバージョンは `mise.toml` で固定しています（mise 未使用
 
 ## カスタマイズの勘所
 
-- 初期テーマ: `src/themes.js` の `DEFAULT_THEMES`
+- 初期テーマ（読み込み失敗時のフォールバック）: `src/themes.js` の `DEFAULT_THEMES`
 - 読み込み元 URL の既定値: `src/themeSource.js` の `DEFAULT_SOURCE_URL`
 - サイコロの質感 / 大きさ / 角の丸み: `src/DiceScene.jsx` の `DICE_SIZE`・`DICE_CORNER_RADIUS`・`meshPhysicalMaterial`
 - 転がる範囲とカメラ: `ARENA_HALF_X` / `ARENA_HALF_Z` / `ARENA_CENTER_Z` と `Canvas` の `camera`

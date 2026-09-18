@@ -82,3 +82,13 @@ export function saveSourceUrl(url) {
     // 書けない場合は黙って諦める
   }
 }
+
+// ユーザーが編集したテーマが保存済みかどうか (src/themes.js)
+// App.jsx の起動時自動読み込みで、6 面を上書きしてよいかの判定に使う
+export function hasStoredThemes() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
