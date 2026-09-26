@@ -2,7 +2,9 @@
 // 3D シーン (DiceScene) の上に番組風の UI を重ね、
 // サイコロを振る操作・トークテーマの編集・外部 JSON からのテーマ読み込みを担当する
 // テーマ一覧は起動時に既定の JSON から自動で読み込む（URL 入力は上級者向けの上書き手段）
-// 6 面のテーマは常時表示のパネル (faces) に出し、その場で書き換えられるようにしている
+// 操作に迷わないよう、画面上のボタンは「サイコロを振る」1 つだけにしている
+// （振るたびに読み込み済みの一覧から 6 面も引き直す）。
+// 6 面の編集や読み込み元の変更は、畳んだ状態で始まる「設定」パネル (faces) から行う
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import DiceScene from './DiceScene'
@@ -46,9 +48,23 @@ function FaceInput({ index, value, onChange }) {
   )
 }
 
-// 画面が狭いときはパネルを畳んだ状態で始める (src/App.jsx)
-function initialFacesOpen() {
-  return !window.matchMedia('(max-width: 640px)').matches
+// 「設定から変えられます」の吹き出しを閉じたかどうか (src/App.jsx)
+const SETTINGS_HINT_STORAGE_KEY = 'lions-dice:settings-hint-dismissed'
+
+function loadSettingsHintDismissed() {
+  try {
+    return localStorage.getItem(SETTINGS_HINT_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function saveSettingsHintDismissed() {
+  try {
+    localStorage.setItem(SETTINGS_HINT_STORAGE_KEY, '1')
+  } catch {
+    // 保存できなくても次回また表示されるだけなので無視する
+  }
 }
 
 export default function App() {
@@ -60,7 +76,8 @@ export default function App() {
   const [sourceUrl, setSourceUrl] = useState(loadSourceUrl)
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
-  const [facesOpen, setFacesOpen] = useState(initialFacesOpen) // 6 面パネルを開いているか
+  const [facesOpen, setFacesOpen] = useState(false) // 設定パネルを開いているか（常に畳んだ状態で始める）
+  const [hintDismissed, setHintDismissed] = useState(loadSettingsHintDismissed)
   // 初回レンダー時点で保存済みのテーマがあったか。
   // マウント後は saveThemes で必ず書き込まれるため、render 中に確定させておく
   const hadStoredThemes = useRef(hasStoredThemes())
@@ -106,13 +123,27 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // サイコロを振る。DiceScene 側は rollToken の変化を検知して投げ直す
+  // サイコロを振る。DiceScene 側は rollToken の変化を検知して投げ直す (src/App.jsx)
+  // テーマ一覧を読み込み済みなら、振ると同時に 6 面も引き直す
   const roll = useCallback(() => {
     if (rolling) return
+    if (pool.length > 0) setThemes(pickThemes(pool, FACE_COUNT))
     setResult(null)
     setRolling(true)
     setRollToken((t) => t + 1)
-  }, [rolling])
+  }, [rolling, pool])
+
+  // 設定の吹き出しを閉じ、次回以降は出さない
+  const dismissHint = useCallback(() => {
+    setHintDismissed(true)
+    saveSettingsHintDismissed()
+  }, [])
+
+  // 設定パネルを開閉する。開いたら吹き出しの役目は終わりなので閉じる
+  const toggleFaces = () => {
+    setFacesOpen((v) => !v)
+    if (!hintDismissed) dismissHint()
+  }
 
   // DiceScene から出目を受け取る
   const handleSettle = useCallback((faceIndex) => {
@@ -207,25 +238,38 @@ export default function App() {
         <button className="btn btn--primary" onClick={roll} disabled={rolling}>
           {rolling ? 'ころがし中' : 'サイコロを振る'}
         </button>
-        {pool.length > 0 && (
-          <button className="btn" onClick={reshuffleFaces} disabled={rolling}>
-            6面を引き直す
-          </button>
-        )}
       </div>
 
       <aside className={`faces${facesOpen ? '' : ' faces--closed'}`}>
         <button
           className="faces__toggle"
-          onClick={() => setFacesOpen((v) => !v)}
+          onClick={toggleFaces}
           aria-expanded={facesOpen}
         >
-          <span className="faces__title">6面のテーマ</span>
-          <span className="faces__lead">クリックで編集</span>
+          <span className="faces__title">
+            <span aria-hidden="true">⚙</span> 設定
+          </span>
+          <span className="faces__lead">6面のテーマ・読み込み元</span>
           <span className="faces__chevron" aria-hidden="true">
             ▾
           </span>
         </button>
+
+        {/* 振った後は結果カードと重ならないよう引っ込める（×で閉じた場合は次回以降も出さない） */}
+        {!facesOpen && !hintDismissed && rollToken === 0 && (
+          <div className="settings-hint" role="status">
+            <p className="settings-hint__text">
+              6面のテーマなど細かい設定は、この「設定」ボタンから変えられます
+            </p>
+            <button
+              className="settings-hint__close"
+              onClick={dismissHint}
+              aria-label="お知らせを閉じる"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {facesOpen && (
           <div className="faces__body">
