@@ -4,6 +4,7 @@
 // テーマ一覧は起動時に既定の JSON から自動で読み込む（URL 入力は上級者向けの上書き手段）
 // 操作に迷わないよう、画面上のボタンは「サイコロを振る」1 つだけにしている
 // （振るたびに読み込み済みの一覧から 6 面も引き直す）。
+// そのボタンには番組風の吹き出し (bubble) を添えて、振ると何が起きるかを一言で伝える
 // 6 面の編集や読み込み元の変更は、畳んだ状態で始まる「設定」パネル (faces) から行う
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -235,9 +236,18 @@ export default function App() {
       </div>
 
       <div className="controls">
-        <button className="btn btn--primary" onClick={roll} disabled={rolling}>
-          {rolling ? 'ころがし中' : 'サイコロを振る'}
-        </button>
+        <div className="controls__item">
+          <span className="bubble" aria-hidden="true">
+            {rolling
+              ? 'どの面が出るかな…'
+              : pool.length > 0
+                ? '６面も変わるよ！'
+                : 'スペースキーでもOK！'}
+          </span>
+          <button className="btn btn--primary" onClick={roll} disabled={rolling}>
+            {rolling ? 'ころがし中' : 'サイコロを振る'}
+          </button>
+        </div>
       </div>
 
       <aside className={`faces${facesOpen ? '' : ' faces--closed'}`}>
