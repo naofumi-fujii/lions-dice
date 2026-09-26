@@ -3,6 +3,7 @@
 // サイコロを振る操作・トークテーマの編集・外部 JSON からのテーマ読み込みを担当する
 // テーマ一覧は起動時に既定の JSON から自動で読み込む（URL 入力は上級者向けの上書き手段）
 // 6 面のテーマは常時表示のパネル (faces) に出し、その場で書き換えられるようにしている
+// 操作ボタンには番組風の吹き出し (bubble) を添えて、何が起きるかを一言で伝える
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import DiceScene from './DiceScene'
@@ -204,13 +205,23 @@ export default function App() {
       </div>
 
       <div className="controls">
-        <button className="btn btn--primary" onClick={roll} disabled={rolling}>
-          {rolling ? 'ころがし中' : 'サイコロを振る'}
-        </button>
-        {pool.length > 0 && (
-          <button className="btn" onClick={reshuffleFaces} disabled={rolling}>
-            6面を引き直す
+        <div className="controls__item">
+          <span className="bubble" aria-hidden="true">
+            {rolling ? 'どの面が出るかな…' : 'スペースキーでもOK！'}
+          </span>
+          <button className="btn btn--primary" onClick={roll} disabled={rolling}>
+            {rolling ? 'ころがし中' : 'サイコロを振る'}
           </button>
+        </div>
+        {pool.length > 0 && (
+          <div className="controls__item">
+            <span className="bubble" aria-hidden="true">
+              ６面も変わるよ！
+            </span>
+            <button className="btn" onClick={reshuffleFaces} disabled={rolling}>
+              6面を引き直す
+            </button>
+          </div>
         )}
       </div>
 
