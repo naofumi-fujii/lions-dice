@@ -57,3 +57,21 @@ export function pickThemes(pool, count) {
   while (picked.length < count) picked.push('')
   return picked
 }
+
+// 使用済みを避けてプールから count 件を引く (src/themeSource.js)
+// App.jsx が 6 面を引き直すときに使う。used は出目になったテーマ本文の配列（themes.js の loadUsedThemes）。
+// - 未使用が count 件以上あれば、未使用だけから引く
+// - 未使用が count 件を切ったら、残りの未使用を必ず面に入れ、足りない分を使用済みから埋めて、使用済みをリセットする
+// 戻り値の used はプールに無くなった本文を落とした次の使用済み一覧（話題を消しても履歴が溜まり続けない）
+export function pickFreshThemes(pool, count, used) {
+  const usedSet = new Set(used)
+  const fresh = pool.filter((t) => !usedSet.has(t))
+  const stillUsed = pool.filter((t) => usedSet.has(t))
+
+  if (fresh.length >= count) {
+    return { themes: pickThemes(fresh, count), used: stillUsed }
+  }
+
+  const filler = pickThemes(stillUsed, count - fresh.length).filter((t) => t !== '')
+  return { themes: pickThemes([...fresh, ...filler], count), used: [] }
+}
