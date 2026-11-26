@@ -1,12 +1,13 @@
 // トークテーマの永続化まわり (src/themes.js)
 // localStorage に「サイコロ 6 面のテーマ」「読み込んだテーマ一覧（プール）」
-// 「読み込み元 URL」を保存し、App.jsx から読み書きする
+// 「読み込み元 URL」「出目になった使用済みテーマ」を保存し、App.jsx から読み書きする
 
 import { DEFAULT_SOURCE_URL } from './themeSource'
 
 const STORAGE_KEY = 'lions-dice:themes'
 const POOL_STORAGE_KEY = 'lions-dice:pool'
 const SOURCE_URL_STORAGE_KEY = 'lions-dice:source-url'
+const USED_STORAGE_KEY = 'lions-dice:used-themes'
 
 // サイコロ 6 面の初期テーマ
 // 1 面目は当たり目。この言い回しのときだけ faceTexture.js が赤い「当」の面を描く
@@ -90,5 +91,29 @@ export function hasStoredThemes() {
     return localStorage.getItem(STORAGE_KEY) !== null
   } catch {
     return false
+  }
+}
+
+// 出目になった使用済みテーマ（本文の配列）を localStorage から読む (src/themes.js)
+// 同じ話題が続けて出ないよう、themeSource.js の pickFreshThemes が未使用分から 6 面を引くのに使う。
+// 話題データに ID が無いため本文そのものをキーにする。無い・壊れている・読めない場合は空配列
+export function loadUsedThemes() {
+  try {
+    const raw = localStorage.getItem(USED_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((t) => typeof t === 'string' && t !== '')
+  } catch {
+    return []
+  }
+}
+
+// 使用済みテーマを localStorage に保存する (src/themes.js)
+export function saveUsedThemes(used) {
+  try {
+    localStorage.setItem(USED_STORAGE_KEY, JSON.stringify(used))
+  } catch {
+    // 書けない場合はメモリ上の履歴だけで動く（リロードすると履歴は消える）
   }
 }

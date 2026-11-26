@@ -4,6 +4,7 @@
 // テーマ一覧は起動時に既定の JSON から自動で読み込む（URL 入力は上級者向けの上書き手段）
 // 操作に迷わないよう、画面上のボタンは「サイコロを振る」1 つだけにしている
 // （振るたびに読み込み済みの一覧から 6 面も引き直す）。
+// 同じ話題が続けて出ないよう、出目になった話題は使用済みとして localStorage に残し、未使用から 6 面を引く。
 // そのボタンには番組風の吹き出し (bubble) を添えて、振ると何が起きるかを一言で伝える
 // 6 面の編集や読み込み元の変更は、畳んだ状態で始まる「設定」パネル (faces) から行う
 
@@ -16,11 +17,13 @@ import {
   loadPool,
   loadSourceUrl,
   loadThemes,
+  loadUsedThemes,
   savePool,
   saveSourceUrl,
   saveThemes,
+  saveUsedThemes,
 } from './themes'
-import { DEFAULT_SOURCE_URL, fetchThemePool, pickThemes } from './themeSource'
+import { DEFAULT_SOURCE_URL, fetchThemePool, pickFreshThemes } from './themeSource'
 
 // 6 面のテーマ 1 行分の入力欄 (src/App.jsx)
 // 通常はテキストと同じ見た目で並び、クリック（フォーカス）するとそのまま書き換えられる。
@@ -74,6 +77,7 @@ export default function App() {
   const [rolling, setRolling] = useState(false)
   const [result, setResult] = useState(null) // 出た面のインデックス
   const [pool, setPool] = useState(loadPool) // 読み込んだテーマ一覧
+  const [usedThemes, setUsedThemes] = useState(loadUsedThemes) // 出目になった使用済みテーマの本文
   const [sourceUrl, setSourceUrl] = useState(loadSourceUrl)
   const [loadingPool, setLoadingPool] = useState(false)
   const [status, setStatus] = useState(null) // { type: 'ok' | 'error', text }
@@ -86,6 +90,18 @@ export default function App() {
   useEffect(() => saveThemes(themes), [themes])
   useEffect(() => savePool(pool), [pool])
   useEffect(() => saveSourceUrl(sourceUrl), [sourceUrl])
+  useEffect(() => saveUsedThemes(usedThemes), [usedThemes])
+
+  // プールから使用済みを避けて 6 面を引き直す (src/App.jsx)
+  // 起動時の自動読み込み・振る・URL から読み込む・引き直す の全経路から呼ぶ
+  const drawFaces = useCallback(
+    (sourcePool) => {
+      const { themes: next, used } = pickFreshThemes(sourcePool, FACE_COUNT, usedThemes)
+      setThemes(next)
+      setUsedThemes(used)
+    },
+    [usedThemes],
+  )
 
   // 起動時に既定の JSON を自動で読み込む (src/App.jsx)
   // 「URL から読み込む」操作が初見では分かりづらいため、何もしなくてもテーマが入った状態で始める。
@@ -101,7 +117,7 @@ export default function App() {
       .then((loaded) => {
         if (cancelled) return
         setPool(loaded)
-        if (applyToFaces) setThemes(pickThemes(loaded, FACE_COUNT))
+        if (applyToFaces) drawFaces(loaded)
         setStatus({
           type: 'ok',
           text: applyToFaces
@@ -128,11 +144,11 @@ export default function App() {
   // テーマ一覧を読み込み済みなら、振ると同時に 6 面も引き直す
   const roll = useCallback(() => {
     if (rolling) return
-    if (pool.length > 0) setThemes(pickThemes(pool, FACE_COUNT))
+    if (pool.length > 0) drawFaces(pool)
     setResult(null)
     setRolling(true)
     setRollToken((t) => t + 1)
-  }, [rolling, pool])
+  }, [rolling, pool, drawFaces])
 
   // 設定の吹き出しを閉じ、次回以降は出さない
   const dismissHint = useCallback(() => {
@@ -146,11 +162,19 @@ export default function App() {
     if (!hintDismissed) dismissHint()
   }
 
-  // DiceScene から出目を受け取る
-  const handleSettle = useCallback((faceIndex) => {
-    setRolling(false)
-    setResult(faceIndex)
-  }, [])
+  // DiceScene から出目を受け取り、出た話題を使用済みにする (src/App.jsx)
+  // 手で書き換えた面などプールに無い話題は記録しない
+  const handleSettle = useCallback(
+    (faceIndex) => {
+      setRolling(false)
+      setResult(faceIndex)
+      const landed = themes[faceIndex]
+      if (landed && pool.includes(landed)) {
+        setUsedThemes((prev) => (prev.includes(landed) ? prev : [...prev, landed]))
+      }
+    },
+    [themes, pool],
+  )
 
   // スペースキーでも振れるようにする
   useEffect(() => {
@@ -178,7 +202,7 @@ export default function App() {
     try {
       const loaded = await fetchThemePool(url)
       setPool(loaded)
-      setThemes(pickThemes(loaded, FACE_COUNT))
+      drawFaces(loaded)
       setResult(null)
       setStatus({ type: 'ok', text: `${loaded.length} 件を読み込み、6 面に割り当てました` })
     } catch (e) {
@@ -191,7 +215,7 @@ export default function App() {
   // 読み込み済みのプールから 6 面を引き直す (src/App.jsx)
   const reshuffleFaces = () => {
     if (pool.length === 0) return
-    setThemes(pickThemes(pool, FACE_COUNT))
+    drawFaces(pool)
     setResult(null)
     setStatus({ type: 'ok', text: `${pool.length} 件から 6 面を引き直しました` })
   }
